@@ -1,4 +1,4 @@
-# Rack::ExclusiveVerbs
+# Rack::ExclusiveVerbs [![Build Status](https://travis-ci.org/atsjj/rack-exclusive-verbs.svg?branch=master)](https://travis-ci.org/atsjj/rack-exclusive-verbs)
 
 Rack middleware implementing an IP whitelist of HTTP verbs.
 
