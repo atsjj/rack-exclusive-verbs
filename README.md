@@ -1,8 +1,24 @@
-# Rack::Exclusive::Verbs
+# Rack::ExclusiveVerbs
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/rack/exclusive/verbs`. To experiment with that code, run `bin/console` for an interactive prompt.
+Rack middleware implementing an IP whitelist of HTTP verbs
 
-TODO: Delete this and the text above, and describe your gem
+## Usage:
+
+```ruby
+require 'rack/exclusive_verbs'
+
+use Rack::ExclusiveVerbs do
+  resolver { Socket.ip_address_list.select { |addr| addr.ipv4_private? }.collect(&:ip_address) } ## optional
+  allow only: '10.0.0.1', to: [:put, :post]
+  allow only: '10.0.0.1', to: :post
+  allow only: '10.0.0.1', to: :be_safe ## get, head, options, trace
+  allow only: '10.0.0.1', to: :be_unsafe ## delete, patch, post, put
+  allow range: '10.0.0.0/24', to: [:put, :post]
+  allow range: '10.0.0.0/24', to: :post
+  allow range: '10.0.0.0/24', to: :be_safe ## get, head, options, trace
+  allow range: '10.0.0.0/24', to: :be_unsafe ## delete, patch, post, put
+end
+```
 
 ## Installation
 
@@ -19,10 +35,6 @@ And then execute:
 Or install it yourself as:
 
     $ gem install rack-exclusive-verbs
-
-## Usage
-
-TODO: Write usage instructions here
 
 ## Development
 

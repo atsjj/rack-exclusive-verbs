@@ -1,6 +1,7 @@
 require 'spec_helper'
 require 'rack/mock'
 require 'rack/exclusive_verbs'
+require 'socket'
 
 class RequestApp
   def initialize(&block)
@@ -77,6 +78,9 @@ shared_examples 'single rule' do
 end
 
 describe Rack::ExclusiveVerbs do
+  let!(:ok_status) { 200 }
+  let!(:not_ok_status) { 403 }
+
   context 'requests from: "10.0.0.1" should be HTTP 200' do
     let!(:ip) { '10.0.0.1' }
     let!(:status) { 200 }
@@ -89,6 +93,44 @@ describe Rack::ExclusiveVerbs do
     let!(:status) { 403 }
 
     include_examples 'single rule'
+  end
+
+  context 'with resolver returning ["10.0.0.1", "10.0.0.2"]' do
+    let!(:request_only_with_resolver_to_get) do
+      RequestApp.new do
+        resolver { ['10.0.0.1', '10.0.0.2'] }
+        allow only: '10.0.0.1', to: :get
+      end
+    end
+
+    it 'request from: "192.168.0.1" with rule `allow only: "10.0.0.1", to: :get` should be HTTP 200' do
+      response = request_only_with_resolver_to_get.from '192.168.0.1', as: :get
+      expect(response.status).to eq(ok_status)
+    end
+
+    it 'request from: "10.0.0.1" with rule `allow only: "10.0.0.1", to: :get` should be HTTP 200' do
+      response = request_only_with_resolver_to_get.from '10.0.0.1', as: :get
+      expect(response.status).to eq(ok_status)
+    end
+  end
+
+  context 'with re-implemented `Rack::Request.ip` resolver' do
+    let!(:request_only_with_resolver_to_get) do
+      RequestApp.new do
+        resolver { |request| request.ip }
+        allow only: '10.0.0.1', to: :get
+      end
+    end
+
+    it 'request from: "192.168.0.1" with rule `allow only: "10.0.0.1", to: :get` should be HTTP 403' do
+      response = request_only_with_resolver_to_get.from '192.168.0.1', as: :get
+      expect(response.status).to eq(not_ok_status)
+    end
+
+    it 'request from: "10.0.0.1" with rule `allow only: "10.0.0.1", to: :get` should be HTTP 200' do
+      response = request_only_with_resolver_to_get.from '10.0.0.1', as: :get
+      expect(response.status).to eq(ok_status)
+    end
   end
 
   it 'has a version number' do

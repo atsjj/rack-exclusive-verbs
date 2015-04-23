@@ -2,12 +2,11 @@ require 'ipaddr'
 require 'set'
 
 module Rack
-  # Rack middleware implementing the IETF draft: "Host Metadata for the Web"
-  # including support for Link-Pattern elements as described in the IETF draft:
-  # "Link-based Resource Descriptor Discovery."
+  # Rack middleware implementing an IP whitelist of HTTP verbs
   #
   # Usage:
   #  use Rack::ExclusiveVerbs do
+  #    resolver { Socket.ip_address_list.select { |addr| addr.ipv4_private? }.collect(&:ip_address) }
   #    allow only: '10.0.0.1', to: [:put, :post]
   #    allow only: '10.0.0.1', to: :post
   #    allow only: '10.0.0.1', to: :be_safe ## get, head, options, trace
@@ -18,17 +17,11 @@ module Rack
   #    allow range: '10.0.0.0/24', to: :be_unsafe ## delete, patch, post, put
   #  end
   #
-  # See also:
-  #   http://tools.ietf.org/html/draft-nottingham-site-meta
-  #   http://tools.ietf.org/html/draft-hammer-discovery
-  #
-  # TODO:
-  #   ...
-  #
   class ExclusiveVerbs
     def initialize(app, &block)
       @app = app
       @rules = {}
+      @resolve = Proc.new { |request| [IPAddr.new(request.ip)] }
       instance_eval(&block)
     end
 
@@ -46,10 +39,10 @@ module Rack
       request = Rack::Request.new(env)
 
       verb = request.request_method.downcase.to_sym
-      ip = IPAddr.new(request.ip)
+      ips = [@resolve.call(request)].flatten
 
       if @rules.has_key?(verb)
-        return @rules[verb].any? { |rule| rule.include?(ip) }
+        return @rules[verb].any? { |rule| ips.any? { |ip| rule.include?(ip) } }
       else
         return false
       end
@@ -88,6 +81,10 @@ module Rack
         ip = IPAddr.new(options[:range])
         @rules[verb.to_sym].add(ip)
       end
+    end
+
+    def resolver(&block)
+      @resolve = block;
     end
 
     class << self
