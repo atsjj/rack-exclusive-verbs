@@ -114,6 +114,35 @@ describe Rack::ExclusiveVerbs do
     end
   end
 
+  context 'with resolver returning ["10.9.0.105", "169.254.254.1", "192.168.2.4", "127.0.0.1"]' do
+    let!(:request_ranges_with_resolver_to_get) do
+      RequestApp.new do
+        resolver { ['10.5.0.105', '169.254.254.1', '192.168.2.4', '127.0.0.1'] }
+        allow range: '0.0.0.0/8',     to: :be_safe
+        allow range: '128.0.0.0/16',  to: :be_safe
+        allow range: '192.0.0.0/24',  to: :be_safe
+        allow range: '10.0.0.0/8',    to: :be_safe
+        allow range: '172.16.0.0/12', to: :be_safe
+        allow range: '10.5.0.0/24',   to: :be_unsafe
+      end
+    end
+
+    it 'get request from: "0:0:0:0:0:0:0:1" with multiple range rules `"0/8", "128/16", "192/24", "10/8", "172.16/12", to: :be_safe` should be HTTP 200' do
+      response = request_ranges_with_resolver_to_get.from '0:0:0:0:0:0:0:1', as: :get
+      expect(response.status).to eq(ok_status)
+    end
+
+    it 'get request from: "10.9.0.105" with multiple range rules `"0/8", "128/16", "192/24", "10/8", "172.16/12", to: :be_safe` should be HTTP 200' do
+      response = request_ranges_with_resolver_to_get.from '10.9.0.105', as: :get
+      expect(response.status).to eq(ok_status)
+    end
+
+    it 'post request from: "10.5.0.140" with multiple range rules `"0/8", "128/16", "192/24", "10/8", "172.16/12", to: :be_safe` should be HTTP 200' do
+      response = request_ranges_with_resolver_to_get.from '10.9.0.105', as: :post
+      expect(response.status).to eq(ok_status)
+    end
+  end
+
   context 'with re-implemented `Rack::Request.ip` resolver' do
     let!(:request_only_with_resolver_to_get) do
       RequestApp.new do

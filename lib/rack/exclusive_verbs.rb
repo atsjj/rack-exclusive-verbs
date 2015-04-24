@@ -39,7 +39,13 @@ module Rack
       request = Rack::Request.new(env)
 
       verb = request.request_method.downcase.to_sym
-      ips = [@resolve.call(request)].flatten
+      ips = [@resolve.call(request)].flatten.map do |ip|
+        if ip.kind_of?(IPAddr)
+          ip
+        else
+          IPAddr.new(ip)
+        end
+      end
 
       if @rules.has_key?(verb)
         return @rules[verb].any? { |rule| ips.any? { |ip| rule.include?(ip) } }
