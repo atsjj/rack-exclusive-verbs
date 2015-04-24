@@ -94,7 +94,7 @@ module Rack
     end
 
     class << self
-      def VERSION; "0.1.1"; end
+      def VERSION; "1.0.0"; end
     end
   end
 end
